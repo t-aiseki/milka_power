@@ -1,0 +1,15 @@
+import 'react-native-gesture-handler';
+import React from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AppNavigator from './src/navigation';
+import { colors } from './src/theme';
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <StatusBar style="light" backgroundColor={colors.statusBar} />
+      <AppNavigator />
+    </SafeAreaProvider>
+  );
+}

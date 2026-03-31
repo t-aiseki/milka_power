@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import * as Haptics from 'expo-haptics';
+
+let Haptics: any = null;
+try { Haptics = require('expo-haptics'); } catch {}
 
 export function useStopwatch() {
   const [elapsed, setElapsed] = useState(0); // seconds
@@ -60,12 +62,12 @@ export function useCountdown(initialSeconds: number, onComplete?: () => void) {
         setRemaining((prev) => {
           if (prev <= 1) {
             setRunning(false);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            Haptics?.notificationAsync?.(Haptics.NotificationFeedbackType.Success).catch(() => {});
             onCompleteRef.current?.();
             return 0;
           }
           if (prev <= 4) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            Haptics?.impactAsync?.(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           }
           return prev - 1;
         });

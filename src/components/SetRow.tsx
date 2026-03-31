@@ -8,7 +8,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+let Haptics: any = null;
+try { Haptics = require('expo-haptics'); } catch {}
 import { colors, spacing, radius, typography } from '../theme';
 import { SetEntry } from '../types';
 
@@ -36,7 +37,7 @@ export default function SetRow({
   const showWeight = exerciseType === 'strength';
 
   const handleComplete = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    Haptics?.impactAsync?.(Haptics?.ImpactFeedbackStyle?.Medium).catch(() => {});
     const restTime = set.restDuration ?? 90;
     onStartRestTimer(restTime);
   };

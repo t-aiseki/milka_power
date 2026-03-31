@@ -8,7 +8,6 @@ import {
   Dimensions,
   FlatList,
 } from 'react-native';
-import { LineChart } from 'react-native-gifted-charts';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, radius, typography, shadow } from '../theme';
@@ -32,6 +31,58 @@ interface ExerciseHistory {
   totalVolume: number;
   sets: number;
 }
+
+// ─── Simple View-based Bar Chart (zero dependencies) ─────────────────────────
+
+function SimpleBarChart({
+  data,
+  color = colors.accent,
+  height = 160,
+}: {
+  data: { label: string; value: number }[];
+  color?: string;
+  height?: number;
+}) {
+  if (data.length === 0) return null;
+  const maxValue = Math.max(...data.map((d) => d.value), 0.01);
+
+  return (
+    <View style={{ height, flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingTop: 24 }}>
+      {data.map((d, i) => {
+        const barHeight = Math.max(
+          (d.value / maxValue) * (height - 44),
+          d.value > 0 ? 4 : 0
+        );
+        return (
+          <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+            {d.value > 0 && (
+              <Text style={chartStyles.barValue}>
+                {d.value % 1 === 0 ? d.value : d.value.toFixed(1)}
+              </Text>
+            )}
+            <View
+              style={{
+                width: '70%',
+                height: barHeight,
+                backgroundColor: color,
+                borderRadius: 5,
+                opacity: 0.7 + (i / Math.max(data.length - 1, 1)) * 0.3,
+              }}
+            />
+            <Text style={chartStyles.barLabel}>{d.label}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const chartStyles = StyleSheet.create({
+  barValue: { fontSize: 10, color: colors.textMuted, marginBottom: 4, fontWeight: '600' },
+  barLabel: { fontSize: 9, color: colors.textMuted, marginTop: 4 },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ProgressScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -99,14 +150,8 @@ export default function ProgressScreen() {
         ))}
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {activeTab === 'overview' && (
-          <OverviewTab workouts={workouts} />
-        )}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        {activeTab === 'overview' && <OverviewTab workouts={workouts} />}
         {activeTab === 'records' && (
           <RecordsTab
             records={records}
@@ -142,15 +187,12 @@ function OverviewTab({ workouts }: { workouts: Workout[] }) {
   }, 0);
   const avgDuration = totalWorkouts > 0 ? Math.floor(totalDuration / totalWorkouts) : 0;
 
-  // Volume chart data (last 8 workouts)
-  const volumePoints = workouts.slice(-8).map((w) => ({
-    value: Math.round((w.totalVolume ?? 0) / 100) / 10,
+  const volumeData = workouts.slice(-8).map((w) => ({
     label: w.date.slice(5),
-    dataPointColor: colors.accent,
+    value: Math.round(((w.totalVolume ?? 0) / 1000) * 10) / 10,
   }));
 
-  // Weekly frequency (last 8 weeks)
-  const freqPoints = buildWeeklyFrequency(workouts);
+  const freqData = buildWeeklyFrequency(workouts);
 
   return (
     <View style={{ gap: spacing.lg }}>
@@ -159,11 +201,13 @@ function OverviewTab({ workouts }: { workouts: Workout[] }) {
         <StatCard
           icon="layers-outline"
           label="Загальний об'єм"
-          value={totalVolume >= 1000000
-            ? `${(totalVolume / 1000000).toFixed(1)}M`
-            : totalVolume >= 1000
-            ? `${(totalVolume / 1000).toFixed(1)}k`
-            : String(Math.round(totalVolume))}
+          value={
+            totalVolume >= 1000000
+              ? `${(totalVolume / 1000000).toFixed(1)}M`
+              : totalVolume >= 1000
+              ? `${(totalVolume / 1000).toFixed(1)}k`
+              : String(Math.round(totalVolume))
+          }
           unit="kg"
           color={colors.purple}
         />
@@ -181,53 +225,17 @@ function OverviewTab({ workouts }: { workouts: Workout[] }) {
         />
       </View>
 
-      {volumePoints.length > 1 && (
+      {volumeData.length > 1 && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Об'єм тренувань (тонни)</Text>
-          <LineChart
-            data={volumePoints}
-            width={SCREEN_WIDTH - spacing.lg * 2 - spacing.xxl * 2}
-            height={180}
-            color={colors.accent}
-            thickness={2}
-            dataPointsColor={colors.accent}
-            startFillColor={colors.accentDim}
-            endFillColor="transparent"
-            areaChart
-            curved
-            hideRules
-            yAxisColor={colors.border}
-            xAxisColor={colors.border}
-            yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
-            xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-            backgroundColor={colors.surface}
-            noOfSections={4}
-          />
+          <SimpleBarChart data={volumeData} color={colors.accent} />
         </View>
       )}
 
-      {freqPoints.length > 1 && (
+      {freqData.length > 1 && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Тренувань на тиждень</Text>
-          <LineChart
-            data={freqPoints}
-            width={SCREEN_WIDTH - spacing.lg * 2 - spacing.xxl * 2}
-            height={160}
-            color={colors.success}
-            thickness={2}
-            dataPointsColor={colors.success}
-            startFillColor={colors.successDim}
-            endFillColor="transparent"
-            areaChart
-            curved
-            hideRules
-            yAxisColor={colors.border}
-            xAxisColor={colors.border}
-            yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
-            xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-            backgroundColor={colors.surface}
-            noOfSections={3}
-          />
+          <SimpleBarChart data={freqData} color={colors.success} height={120} />
         </View>
       )}
 
@@ -242,7 +250,9 @@ function OverviewTab({ workouts }: { workouts: Workout[] }) {
   );
 }
 
-function StatCard({ icon, label, value, unit, color }: {
+function StatCard({
+  icon, label, value, unit, color,
+}: {
   icon: string; label: string; value: string; unit?: string; color: string;
 }) {
   return (
@@ -262,8 +272,7 @@ function StatCard({ icon, label, value, unit, color }: {
 // ─── Records Tab ──────────────────────────────────────────────────────────────
 
 function RecordsTab({
-  records,
-  onSelectExercise,
+  records, onSelectExercise,
 }: {
   records: PersonalRecord[];
   onSelectExercise: (id: string) => void;
@@ -311,26 +320,21 @@ function RecordsTab({
 // ─── Exercise Tab ─────────────────────────────────────────────────────────────
 
 function ExerciseTab({
-  exercises,
-  selectedId,
-  onSelect,
-  history,
+  exercises, selectedId, onSelect, history,
 }: {
   exercises: Exercise[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   history: ExerciseHistory[];
 }) {
-  const weightPoints = history.slice(-8).map((h) => ({
-    value: h.maxWeight,
+  const weightData = history.slice(-8).map((h) => ({
     label: h.date.slice(5),
-    dataPointColor: colors.accent,
+    value: h.maxWeight,
   }));
 
-  const volumePoints = history.slice(-8).map((h) => ({
-    value: Math.round(h.totalVolume),
+  const volumeData = history.slice(-8).map((h) => ({
     label: h.date.slice(5),
-    dataPointColor: colors.purple,
+    value: Math.round(h.totalVolume),
   }));
 
   return (
@@ -357,60 +361,28 @@ function ExerciseTab({
         <>
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Максимальна вага (kg)</Text>
-            <LineChart
-              data={weightPoints}
-              width={SCREEN_WIDTH - spacing.lg * 2 - spacing.xxl * 2}
-              height={180}
-              color={colors.accent}
-              thickness={2}
-              dataPointsColor={colors.accent}
-              startFillColor={colors.accentDim}
-              endFillColor="transparent"
-              areaChart
-              curved
-              hideRules
-              yAxisColor={colors.border}
-              xAxisColor={colors.border}
-              yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-              backgroundColor={colors.surface}
-              noOfSections={4}
-            />
+            <SimpleBarChart data={weightData} color={colors.accent} height={180} />
           </View>
 
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Об'єм (кг × рази)</Text>
-            <LineChart
-              data={volumePoints}
-              width={SCREEN_WIDTH - spacing.lg * 2 - spacing.xxl * 2}
-              height={160}
-              color={colors.purple}
-              thickness={2}
-              dataPointsColor={colors.purple}
-              startFillColor={colors.purpleDim}
-              endFillColor="transparent"
-              areaChart
-              curved
-              hideRules
-              yAxisColor={colors.border}
-              xAxisColor={colors.border}
-              yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-              backgroundColor={colors.surface}
-              noOfSections={4}
-            />
+            <SimpleBarChart data={volumeData} color={colors.purple} height={160} />
           </View>
 
           <View style={styles.historyTable}>
             <Text style={styles.chartTitle}>Історія</Text>
-            {history.slice().reverse().slice(0, 10).map((h, i) => (
-              <View key={i} style={styles.historyRow}>
-                <Text style={styles.historyDate}>{h.date}</Text>
-                <Text style={styles.historyWeight}>{h.maxWeight} kg</Text>
-                <Text style={styles.historyReps}>{h.maxReps} reps</Text>
-                <Text style={styles.historyVolume}>{Math.round(h.totalVolume)} vol</Text>
-              </View>
-            ))}
+            {history
+              .slice()
+              .reverse()
+              .slice(0, 10)
+              .map((h, i) => (
+                <View key={i} style={styles.historyRow}>
+                  <Text style={styles.historyDate}>{h.date}</Text>
+                  <Text style={styles.historyWeight}>{h.maxWeight} kg</Text>
+                  <Text style={styles.historyReps}>{h.maxReps} reps</Text>
+                  <Text style={styles.historyVolume}>{Math.round(h.totalVolume)} vol</Text>
+                </View>
+              ))}
           </View>
         </>
       )}
@@ -418,7 +390,7 @@ function ExerciseTab({
       {selectedId && history.length <= 1 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Недостатньо даних</Text>
-          <Text style={styles.emptyText}>Потрібно щонайменше 2 тренування з цією вправою</Text>
+          <Text style={styles.emptyText}>Потрібно щонайменше 2 тренування</Text>
         </View>
       )}
 
@@ -437,7 +409,9 @@ function buildWeeklyFrequency(workouts: Workout[]): { value: number; label: stri
   const map: Record<string, number> = {};
   workouts.forEach((w) => {
     const d = new Date(w.date + 'T00:00:00');
-    const weekNum = Math.ceil(((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7);
+    const weekNum = Math.ceil(
+      ((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
+    );
     const key = `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
     map[key] = (map[key] ?? 0) + 1;
   });
@@ -459,7 +433,12 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { padding: spacing.lg, paddingBottom: 100 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  statCard: { flex: 1, minWidth: (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm) / 2 - spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, ...shadow.small, gap: spacing.xs },
+  statCard: {
+    flex: 1,
+    minWidth: (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm) / 2 - spacing.sm,
+    backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md,
+    borderWidth: 1, ...shadow.small, gap: spacing.xs,
+  },
   statIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
   statValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
   statValue: { fontSize: 22, fontWeight: '800' },

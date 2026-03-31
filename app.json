@@ -4,26 +4,16 @@
     "slug": "milka-power",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A0E1A"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.milkapower.app"
     },
     "android": {
+      "package": "com.milkapower.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0E1A"
-      },
-      "package": "com.milkapower.app"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      }
     },
     "plugins": []
   }
